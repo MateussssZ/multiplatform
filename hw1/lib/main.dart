@@ -30,35 +30,54 @@ class CameraScreen extends StatefulWidget {
   const CameraScreen({Key? key, required this.camera}) : super(key: key);
 
   @override
-  // ignore: library_private_types_in_public_api
   _CameraScreenState createState() => _CameraScreenState();
 }
 
 class _CameraScreenState extends State<CameraScreen> {
-  late CameraController _controller;
+  late CameraController _cameraController;
   late Future<void> _initializeControllerFuture;
   String? _imagePath;
 
   @override
   void initState() {
     super.initState();
-    _controller = CameraController(
-      widget.camera,
+    _initializeCamera();
+  }
+  Future<void> _initializeCamera() async {
+    // Get the list of available cameras
+    try{
+      final cameras = await availableCameras();
+
+    // Use the first camera in the list (usually the back camera)
+    final firstCamera = cameras.first;
+
+    // Initialize the CameraController
+    _cameraController = CameraController(
+      firstCamera,
       ResolutionPreset.medium,
     );
-    _initializeControllerFuture = _controller.initialize(); 
+    
+    if (mounted){
+      setState(() {});
+    }
+
+    // Initialize the controller and store the Future
+    _initializeControllerFuture = _cameraController.initialize();
+    } catch (e){
+      print(e);
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _cameraController.dispose();
     super.dispose();
   }
 
   Future<void> _takePicture() async {
     try {
       await _initializeControllerFuture; 
-      final image = await _controller.takePicture(); 
+      final image = await _cameraController.takePicture(); 
       setState(() {
         _imagePath = image.path; 
       });
@@ -67,11 +86,6 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
-  void _resetCamera() {
-    setState(() {
-      _imagePath = null; 
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +99,7 @@ class _CameraScreenState extends State<CameraScreen> {
                     future: _initializeControllerFuture,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.done) {
-                        return CameraPreview(_controller); 
+                        return CameraPreview(_cameraController); 
                       } else {
                         return Center(child: CircularProgressIndicator());
                       }
@@ -93,21 +107,11 @@ class _CameraScreenState extends State<CameraScreen> {
                   )
                 : Image.file(File(_imagePath!)), 
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton(
-                onPressed: _takePicture,
-                child: Text('Сделать снимок'), 
-              ),
-              SizedBox(width: 10),
-              if (_imagePath != null)
-                ElevatedButton(
-                  onPressed: _resetCamera,
-                  child: Text('Назад'),
-                ),
-            ],
-          ),
+          FloatingActionButton(
+// Provide an onPressed callback.
+            onPressed: _takePicture,
+          child: const Icon(Icons.camera_alt),
+        )
         ],
       ),
     );
